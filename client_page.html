@@ -1,74 +1,96 @@
 <html>
 <style>
-.pb_map_span{
-    opacity:0;
-    font-family: 'Proxima';
-    font-size: 18px;
-    display: block;
-    position: relative;
-    text-align: center;
-    top: -50px;
-    background:radial-gradient(55.15% 528.85% at 50% 50%, green 0%, rgba(252, 85, 0, 0) 64.27%);
-    color:white;
-    padding-top:10px;
-    padding-bottom:10px;
+#maps_list{
+    margin-left:auto;
+    padding-top:2px;
+    padding-bottom:2px;
+    border-spacing: 0px 5px;
+    display: table;
+    width: 448px;
+    border-radius: 3px;
+    background: #CDD8E2;
+    border-radius: 3px;
 }
-.map{
-    transform: rotate3d(0,1,0,90deg);
-    transition: transform 1s;
+
+.map_block{
+
 }
-    .map_pb_obs{
-        /*border: 4px solid gray;*/
-        opacity:0;
-        width:152px;
-        height:213px;
-        border-radius:10px;
-        margin-left:31px;
-        margin-right:31px;
-        object-fit:cover;
-    }
-    #pb_rows_maps_last{
-        padding-left:45px;
-    }
 </style>
 <body>
-    <div style='display:flex;flex-direction:row;position: absolute;right: 0px;left: 0px;bottom: 0px;'>
-        <div id='pb_rows_maps_a' style='display:flex;flex-direction:row; margin-left: auto; margin-right: auto; width:auto; height:288px;'></div>
+    <div>
+        <div class='timer'><span id='clock'></span><span id='clock_picture'></span></div>
+        <div id='maps_list'>
+
+        </div>
     </div>
 </body>
 <script>
 var socket ;
 let url = 'ws://'+window.location.origin.replace('http://','').replace('https://','').replace(/\:\d+$/g,':8080')
-let id=0;
-let maps=[];
-let buf=[];
-let gt='';
+let id=0
 let check = false;
 
-function start(){
-    document.getElementById('pb_rows_maps_a').innerHTML = null;
-    for(let i=0;i<7;i++){
-        document.getElementById('pb_rows_maps_a').innerHTML+='<div class="map" id="map_div_'+i+'"><img id="'+(i+1)+'_obs" class="map_pb_obs"></img><span class="pb_map_span" id="'+(i+1)+'_obs_span"></span></div>';
-    }
+function update(){
+    document.getElementById('maps_list').innerHTML = null
+    maps.forEach((elem)=>{
+        let pick = elem.pick
+        let block = `<div class='map_block value='${elem.map}' onclick='map_choose(this)' ${elem.pick?'pick':elem.ban?'ban':null}'>`
+        block+=`<img class='map_img' src='./maps/${elem.map}.map.jpg'/>`
+        block+=`<span class='map_title'>${elem.map}</span></div>`;
+        document.getElementById('maps_list').innerHTML += block;
+    })
 }
 
-start();
-
-function maps_check(arr_maps){
-    let real=0
-    let nr = 0
-    for(let i=0;i<maps.length-1;i++){
-        if(maps[i]) real++;
-        for(let j=i+1;j<arr_maps.length;j++){
-            if(maps[i] == arr_maps[j]){
-                nr++;
+function map_choose(){
+    document.getElementsByClassName('map_block').forEach((element)=>{
+        element.onclick = (element)=>{
+            let ind = maps.find((element, index, array)=>{
+                return element.map == 'de_dust2'?index:null
+            })
+            let map = maps[ind]
+            if(!map.pick && !map.ban){
+                switch(game_type.toLowerCase()){
+                    case 'bo1':
+                        if((turn && team1 == team) || (!turn && team2 == team)){break;}
+                        maps[ind]={
+                            map: maps[ind].map,
+                            pick: type?team:null,
+                            ban: type?null:team,
+                        }
+                        break;
+                    case 'bo2':
+                        maps[ind]={
+                            map: maps[ind].map,
+                            pick: type?team:null,
+                            ban: type?null:team,
+                        }
+                        break
+                    case 'bo5':
+                        maps[ind]={
+                            map: maps[ind].map,
+                            pick: type?team:null,
+                            ban: type?null:team,
+                        }
+                        break
+                    default:break
+                }
             }
         }
-    }
-    return (real == nr)
+    })
 }
 
-
+function message_read(event){
+    let message = event.data
+    let maps = message.maps;
+    let game_type = message.game_type;
+    let logs = message.logs
+    let team;
+    let team1 = message.team1
+    let team2 = message.team2
+    let turn = message.turn
+    let type = message.type
+    update()
+}
 
 function reconnect(){
     socket = new WebSocket(url);
@@ -82,79 +104,10 @@ function reconnect(){
         socket.send("get_lobby_info");
     }
     socket.onmessage = (event)=>{
-        let message = event.data;
-        let arr = message?JSON.parse(message):[];
-        if(arr){
-            if(!arr.maps){
-                maps = [];
-            }else{
-                maps = arr.maps;
-            }
-        }else{
-            maps = [];
-        }
-        gt = arr.game_type;
-        switch(gt){
-            case 'Bo1':
-                for(let i=0;i<maps.length;i++){
-                    if(maps[i]){
-                        document.getElementById((i+1)+'_obs').style='opacity:1;';
-                        if(i!=3){
-                            document.getElementById((i+1)+'_obs_span').style='background:radial-gradient(55.15% 528.85% at 50% 50%, #FC5500 0%, rgba(252, 85, 0, 0) 64.27%); opacity: 1';
-                        }else{
-                            document.getElementById((i+1)+'_obs_span').style='background:radial-gradient(55.15% 528.85% at 50% 50%, green 0%, rgba(252, 85, 0, 0) 64.27%); opacity: 1';
-                        }
-                        document.getElementById((i+1)+'_obs').src = "../maps/"+maps[i]+".map.jpg";
-                        document.getElementById((i+1)+'_obs_span').innerText = maps[i];
-                        document.getElementById('map_div_'+i).style='transform:rotate3d(0,1,0,0deg); transition: transform 1s;';
-                    }
-                }
-                break;
-            case 'Bo3':
-                for(let i=0;i<maps.length;i++){
-                    if(maps[i]){
-                        document.getElementById((i+1)+'_obs').style='opacity:1;';
-                        if(i==0 || i==2 || i==4 || i==6){
-                            document.getElementById((i+1)+'_obs_span').style='background:radial-gradient(55.15% 528.85% at 50% 50%, #FC5500 0%, rgba(252, 85, 0, 0) 64.27%); opacity: 1';
-                        }else{
-                            document.getElementById((i+1)+'_obs_span').style='background:radial-gradient(55.15% 528.85% at 50% 50%, green 0%, rgba(252, 85, 0, 0) 64.27%); opacity: 1';
-                        }
-                        document.getElementById((i+1)+'_obs').src = "../maps/"+maps[i]+".map.jpg";
-                        document.getElementById((i+1)+'_obs_span').innerText = maps[i];
-                        document.getElementById('map_div_'+i).style='transform:rotate3d(0,1,0,0deg); transition: transform 1s;';
-                    }
-                }
-                break;
-            case 'Bo5':
-                for(let i=0;i<maps.length;i++){
-                    if(maps[i]){
-                        document.getElementById((i+1)+'_obs').style='opacity:1;';
-                        if(i==0 || i==6){
-                            document.getElementById((i+1)+'_obs_span').style='background:radial-gradient(55.15% 528.85% at 50% 50%, #FC5500 0%, rgba(252, 85, 0, 0) 64.27%); opacity: 1';
-                        }else{
-                                document.getElementById((i+1)+'_obs_span').style='background:radial-gradient(55.15% 528.85% at 50% 50%, green 0%, rgba(252, 85, 0, 0) 64.27%); opacity: 1';
-                        }
-                        document.getElementById((i+1)+'_obs').src = "../maps/"+maps[i]+".map.jpg";
-                        document.getElementById((i+1)+'_obs_span').innerText = maps[i];
-                        document.getElementById('map_div_'+i).style='transform:rotate3d(0,1,0,0deg); transition: transform 1s;';
-                    }
-                }
-            break;
-        }
-        if(maps.length==0){
-            buf = maps;
-            for(let i=0;i<7;i++){
-                document.getElementById((i+1)+'_obs').style='opacity:0;';
-                document.getElementById('map_div_'+i).style='transform:rotate3d(0,1,0,90deg); transition: transform 0s;';
-            }
-        }
-        if(maps.length!=buf.length){
-            for(let i=0;i<maps.length;i++){
-                buf[i]=maps[i];
-            }
-        }
+        message_read(event)
     }
 }
+
 reconnect()
 </script>
 </html>

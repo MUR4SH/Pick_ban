@@ -2,14 +2,34 @@ const server_i = require("ws");
 const server_http = require("http");
 const client_http = require("http");
 const fs = require('fs');
-let html_s = fs.readFileSync('./server_page.html','utf-8')
-let html_c = fs.readFileSync('./client_page.html','utf-8')
+let html_s
+let html_c
 
 const server = new server_i.Server({port:8080})
 
-let maps=[];
+let maps = [{map:"de_dust2",pick:"",ban:""},
+{map:"de_mirage",pick:"",ban:""},
+{map:"de_nuke",pick:"",ban:""},
+{map:"de_inferno",pick:"",ban:""},
+{map:"de_train",pick:"",ban:""},
+{map:"de_overpass",pick:"",ban:""},
+{map:"de_vertigo",pick:"",ban:""}]
+let turn=false //f - team1, t = team2
+let team1="Team A";
+let team2="Team B";
+let logs=[];
 var clients = [];
-let gt='Bo1';
+let game_type='bo1';
+
+function reload_maps(){
+    maps = [{map:"de_dust2",pick:"",ban:""},
+    {map:"de_mirage",pick:"",ban:""},
+    {map:"de_nuke",pick:"",ban:""},
+    {map:"de_inferno",pick:"",ban:""},
+    {map:"de_train",pick:"",ban:""},
+    {map:"de_overpass",pick:"",ban:""},
+    {map:"de_vertigo",pick:"",ban:""}]
+}
 
 server.on('connection',(ws)=>{
     var id = Math.random();
@@ -17,10 +37,26 @@ server.on('connection',(ws)=>{
     let response;
     console.log('new client')
     ws.on('message', function(message) {
-        if(message == 'reload_lobby'){
-            gt = 'Bo1'
-            maps = []
-        }else if(message != 'get_lobby_info'){
+        if(message == 'reload_maps'){
+            reload_maps()
+        }else if(message == 'reload_gt'){
+            gt = 'bo1'
+        }else if(message == 'reload_teams'){
+            team1="Team A";
+            team2="Team B";
+        }else if(message == 'reload_logs'){
+            logs=[];
+        }else if(message == 'set_pb'){
+            try{
+                body = JSON.parse(message)
+            }catch(err){
+                body={}
+            }
+            if(body.maps){
+                maps = body.maps
+            }
+            turn = !turn
+        }else if(message == 'set_lobby'){
             try{
                 body = JSON.parse(message)
             }catch(err){
@@ -29,9 +65,11 @@ server.on('connection',(ws)=>{
             if(body.game_type){
                 gt = body.game_type
             }
-            if(body.maps){
-                maps = body.maps
+            if(body.teams){
+                team1 = body.teams.team1
+                team2 = body.teams.team2
             }
+            turn = Boolean(Math.round(Math.random()))
         }
         response = {
             game_type: gt,
@@ -50,6 +88,7 @@ server.on('connection',(ws)=>{
 server_http.createServer(async function(req, res){
     if(req.method == "GET"){
         res.statusCode = 200;
+        html_s = fs.readFileSync('./server_page.html','utf-8')
         res.setHeader('Content-type', 'text/html');
         res.write(html_s)
         res.end();
@@ -61,6 +100,9 @@ server_http.createServer(async function(req, res){
 client_http.createServer(async function(req, res){
     if(req.method == "GET"){
         if(!req.url.match(/.[A-Za-z]+$/g)){
+            res.statusCode = 200;
+            res.setHeader('Content-type', 'text/html');
+            html_c = fs.readFileSync('./client_page.html','utf-8')
             res.write(html_c)
             res.end();
         }else{
