@@ -1,0 +1,189 @@
+<style>
+    #pb_t_main{
+        display:flex;
+        flex-direction:row;
+    }
+    #pb_t_main select{
+        width:200px;
+        height:30px;
+        margin-left:5px;
+    }
+    #pb_ta{
+        display:flex;
+        flex-direction:row;
+    }
+    #pb_tb{
+        display:flex;
+        flex-direction:row;
+    }
+    #pb_tm{
+        display:flex;
+        flex-direction:row;
+        margin-left:50px;
+        margin-right:50px;
+    }
+    .btn{
+        width:100px;
+        height:40px;
+        cursor:pointer;
+        margin-top:20px;
+        border:1px solid black;
+        background:#87bbdc;
+        color:white;
+    }
+    #gt{
+        width:200px;
+        height:30px;
+        margin-bottom:40px;
+    }
+    </style>
+    <body>
+        Game type<select id='gt' onchange='change_gt()'>
+            <option value='Bo1'>Bo1</option>
+            <option selected value='Bo3'>Bo3</option>
+            <option value='Bo5'>Bo5</option>
+        </select>
+        <div id='pb_t_main'>
+            <div id='pb_ta'>Team Left<select id='map_a_1' onchange='change_chs()'></select><select id='map_a_2' onchange='change_chs()'></select><select id='map_a_3' onchange='change_chs()'></select><select id='map_a_4' onchange='change_chs()'></select><select id='map_a_5' onchange='change_chs()'></select><select id='map_a_6' onchange='change_chs()'></select><select id='map_a_7' onchange='change_chs()'></select>Team Right</div>
+        </div>
+        <div class='btn' onclick='set_lobby();'>Accept</div>
+        <div class='btn' onclick='reload_lobby();'>Reload</div>
+    </body>
+    <script>
+    let url = 'ws://'+window.location.origin.replace('http://','').replace('https://','').replace(/\:\d+$/g,':8080')
+    var socket
+    
+    let maps = ["de_dust2","de_mirage","de_nuke","de_inferno","de_train","de_overpass","de_vertigo"];
+    let maps_buf = ["de_dust2","de_mirage","de_nuke","de_inferno","de_train","de_overpass","de_vertigo"];
+    let chms = [];
+    
+    function change_gt(){
+        switch(document.getElementById('gt').value){
+            case 'Bo1':
+                document.getElementById('map_a_1').style='border:4px solid red';
+                document.getElementById('map_a_2').style='border:4px solid red';
+                document.getElementById('map_a_3').style='border:4px solid red';
+                document.getElementById('map_a_4').style='border:4px solid green';
+                document.getElementById('map_a_5').style='border:4px solid red';
+                document.getElementById('map_a_6').style='border:4px solid red';
+                document.getElementById('map_a_7').style='border:4px solid red';
+                break;
+            case 'Bo3':
+                document.getElementById('map_a_1').style='border:4px solid red';
+                document.getElementById('map_a_2').style='border:4px solid green';
+                document.getElementById('map_a_3').style='border:4px solid red';
+                document.getElementById('map_a_4').style='border:4px solid green';
+                document.getElementById('map_a_5').style='border:4px solid red';
+                document.getElementById('map_a_6').style='border:4px solid green';
+                document.getElementById('map_a_7').style='border:4px solid red';
+                break;
+            case 'Bo5':
+                document.getElementById('map_a_1').style='border:4px solid red';
+                document.getElementById('map_a_2').style='border:4px solid green';
+                document.getElementById('map_a_3').style='border:4px solid green';
+                document.getElementById('map_a_4').style='border:4px solid green';
+                document.getElementById('map_a_5').style='border:4px solid green';
+                document.getElementById('map_a_6').style='border:4px solid green';
+                document.getElementById('map_a_7').style='border:4px solid red';
+                break;
+        }
+    }
+    
+    async function reload_lobby(){
+        socket.send("reload_lobby")
+        chms=[];
+        document.getElementById('map_a_1').value=null;
+        document.getElementById('map_a_2').value=null;
+        document.getElementById('map_a_3').value=null;
+        document.getElementById('map_a_4').value=null;
+        document.getElementById('map_a_5').value=null;
+        document.getElementById('map_a_6').value=null;
+        document.getElementById('map_a_7').value=null;
+    }
+    
+    function shift(){
+        let mb = []
+        for(let i=0;i<maps.length;i++){
+            if(maps[i]){
+                mb.push(maps[i])
+            }
+        }
+        maps = mb
+    }
+
+    function change_chs(){
+        let num=0;
+        for(let i=0;i<7;i++){
+            if(document.getElementById('map_a_'+(i+1)).value){
+                chms[i] = document.getElementById('map_a_'+(i+1)).value;
+                num++;
+                for(let j=0;j<maps.length;j++){
+                    if(maps[j] == chms[i] && chms[i]){
+                        maps[j] = null;
+                    }
+                }
+            }
+        }
+        shift()
+        if(maps.length == 1){
+            document.getElementById('map_a_4').value = maps[0]
+            chms.push(maps[0]);
+        }
+        maps = maps_buf;
+    }
+    
+    async function set_lobby(){
+        let gt = document.getElementById('gt').value
+        let request = {
+            maps: chms,
+            game_type: gt
+        }
+        socket.send(JSON.stringify(request))
+    }
+    
+    function set_maps(){
+        for(let j=0;j<7;j++){
+            let block=''
+            for(let i=0;i<maps.length;i++){
+                block +="<option value='"+maps[i]+"'>"+maps[i]+"</option>";
+            }
+            document.getElementById('map_a_'+(j+1)).innerHTML = block;
+            document.getElementById('map_a_'+(j+1)).value = null
+        }
+    }
+    set_maps();
+
+
+
+
+function reconnect(){
+    socket = new WebSocket(url);
+    socket.onclose = function(){
+        setTimeout(function(){reconnect(url)}, 1000);
+    };
+    socket.onerror  = ()=>{
+        setTimeout(function(){reconnect(url)}, 1000);
+    }
+    socket.onopen = ()=>{
+        socket.send("get_lobby_info");
+    }
+    socket.onmessage = (event)=>{
+        let message = event.data;
+        let arr = message?JSON.parse(message):[];
+        chms = arr.maps
+        if(chms[0] || chms[5]){
+            if(chms[0])document.getElementById('map_a_1').value=chms[0];
+            if(chms[1])document.getElementById('map_a_2').value=chms[1];
+            if(chms[2])document.getElementById('map_a_3').value=chms[2];
+            if(chms[3])document.getElementById('map_a_4').value=chms[3];
+            if(chms[4])document.getElementById('map_a_5').value=chms[4];
+            if(chms[5])document.getElementById('map_a_6').value=chms[5];
+            if(chms[6])document.getElementById('map_a_7').value=chms[6];
+        }
+        change_chs()
+        document.getElementById('gt').value = arr.game_type;
+        change_gt()
+    }
+}
+reconnect()
+</script>
