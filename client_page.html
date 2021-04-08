@@ -2,22 +2,66 @@
 <style>
 #maps_list{
     margin-left:auto;
+    margin-right: auto;
     padding-top:2px;
-    padding-bottom:2px;
+    padding-bottom:5px;
     border-spacing: 0px 5px;
     display: table;
     width: 448px;
+
     border-radius: 3px;
     background: #CDD8E2;
     border-radius: 3px;
 }
 
 .map_block{
+    cursor: pointer;
+    width: 426px;
+    height: 80px;
+    margin-top: 5px;
+}
 
+.map_img{
+    object-fit: cover;
+    cursor: pointer;
+    margin-left:11px;
+    border-radius: 3px;
+    width: 426px;
+    height: 80px;
+}
+
+.ban img{
+    filter: grayscale(1);
+}
+
+.ban span{
+    background: radial-gradient(55.15% 528.85% at 50% 50%, red 0%, rgba(252, 85, 0, 0) 94.27%);
+}
+
+.map_title{
+    cursor: pointer;
+    text-decoration: none;
+    margin-top: 22px;
+    margin-left: 10px;
+    width: 416px;
+    padding-top:5px;   
+    padding-bottom:5px;
+    text-align:center;
+    font-size: 19px;
+    font-family: 'Proxima';
+    color: #FFFFFF;
+    position: relative;
+    display: block;
+    padding-left:11px;
+    top: -80px;
+	text-shadow: 0 0 2px black;
+
+    background: radial-gradient(55.15% 528.85% at 50% 50%, #FC5500 0%, rgba(252, 85, 0, 0) 94.27%);
 }
 </style>
 <body>
     <div>
+
         <div class='timer'><span id='clock'></span><span id='clock_picture'></span></div>
         <div id='maps_list'>
 
@@ -30,22 +74,36 @@ let url = 'ws://'+window.location.origin.replace('http://','').replace('https://
 let id=0
 let check = false;
 
-function update(){
+function message_read(event){
+    let message = JSON.parse(event.data)
+    let maps = message.maps;
+    let game_type = message.game_type;
+    let logs = message.logs
+    let team = "Team A";
+    let team1 = message.team1
+    let team2 = message.team2
+    let turn = message.turn
+    let type = message.type
+
     document.getElementById('maps_list').innerHTML = null
     maps.forEach((elem)=>{
         let pick = elem.pick
-        let block = `<div class='map_block value='${elem.map}' onclick='map_choose(this)' ${elem.pick?'pick':elem.ban?'ban':null}'>`
+        let block = `<div class='map_block ${elem.pick?'pick':elem.ban?'ban':''}' value="${elem.map}">`
         block+=`<img class='map_img' src='./maps/${elem.map}.map.jpg'/>`
         block+=`<span class='map_title'>${elem.map}</span></div>`;
         document.getElementById('maps_list').innerHTML += block;
     })
-}
 
-function map_choose(){
-    document.getElementsByClassName('map_block').forEach((element)=>{
-        element.onclick = (element)=>{
-            let ind = maps.find((element, index, array)=>{
-                return element.map == 'de_dust2'?index:null
+    let el_arr = document.getElementsByClassName('map_block')
+    for(let i=0;i<el_arr.length;i++){
+        let element = el_arr[i]
+        element.onclick = (e)=>{
+            let elemt = element.getAttribute('value')
+            let ind=0;
+            maps.forEach((elem,index)=>{
+                if(elem.map == elemt){
+                    ind = Number(index)
+                }
             })
             let map = maps[ind]
             if(!map.pick && !map.ban){
@@ -75,21 +133,10 @@ function map_choose(){
                     default:break
                 }
             }
-        }
-    })
-}
-
-function message_read(event){
-    let message = event.data
-    let maps = message.maps;
-    let game_type = message.game_type;
-    let logs = message.logs
-    let team;
-    let team1 = message.team1
-    let team2 = message.team2
-    let turn = message.turn
-    let type = message.type
-    update()
+            socket.send("set_pb"+JSON.stringify(maps));
+            console.log(JSON.stringify(maps))
+        }        
+    }
 }
 
 function reconnect(){
@@ -104,7 +151,9 @@ function reconnect(){
         socket.send("get_lobby_info");
     }
     socket.onmessage = (event)=>{
-        message_read(event)
+        setTimeout(()=>{
+            message_read(event)
+        },100)
     }
 }
 

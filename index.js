@@ -46,18 +46,20 @@ server.on('connection',(ws)=>{
             team2="Team B";
         }else if(message == 'reload_logs'){
             logs=[];
-        }else if(message == 'set_pb'){
+        }else if(message.includes('set_pb')){
             try{
+                message = message.replace('set_pb','')
                 body = JSON.parse(message)
             }catch(err){
                 body={}
             }
-            if(body.maps){
-                maps = body.maps
+            if(body){
+                maps = body
             }
             turn = !turn
-        }else if(message == 'set_lobby'){
+        }else if(message.includes('set_lobby')){
             try{
+                message = message.replace('set_lobby','')
                 body = JSON.parse(message)
             }catch(err){
                 body={}
@@ -72,8 +74,9 @@ server.on('connection',(ws)=>{
             turn = Boolean(Math.round(Math.random()))
         }
         response = {
-            game_type: gt,
-            maps: maps
+            game_type: game_type,
+            maps: maps,
+            teams: {team1:team1,team2:team2}
         }
         for (var key in clients) {
             clients[key].send(JSON.stringify(response));
@@ -111,7 +114,6 @@ client_http.createServer(async function(req, res){
             try{
                 photo = fs.readFileSync(url_photo)
                 let photo_type='jpg';
-                console.log(req.url)
                 photo_type = req.url.match(/.[A-Za-z]+$/g)[0].replace('.','')
                 res.writeHead(200, {'Content-Type': `image/${photo_type}`});
                 res.write(photo);
